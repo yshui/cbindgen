@@ -217,6 +217,8 @@ pub struct ExportConfig {
     pub exclude: Vec<String>,
     /// Table of name conversions to apply to item names
     pub rename: HashMap<String, String>,
+    /// Rename rule for all exported items
+    pub rename_all: crate::bindgen::rename::RenameRule,
     /// Table of raw strings to append to the body of items.
     pub body: HashMap<String, String>,
     /// A prefix to add before the name of every item
@@ -237,15 +239,18 @@ impl ExportConfig {
     }
 
     pub(crate) fn rename(&self, item_name: &mut String) {
+        use crate::bindgen::rename::IdentifierType;
         if let Some(name) = self.rename.get(item_name) {
             *item_name = name.clone();
             if self.renaming_overrides_prefixing {
+                *item_name = self.rename_all.apply(item_name, IdentifierType::Item);
                 return;
             }
         }
         if let Some(ref prefix) = self.prefix {
             item_name.insert_str(0, &prefix);
         }
+        *item_name = self.rename_all.apply(item_name, IdentifierType::Item);
     }
 }
 

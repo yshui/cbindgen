@@ -13,6 +13,7 @@ pub enum IdentifierType<'a> {
     EnumVariant(&'a Enum),
     FunctionArg,
     Enum,
+    Item,
 }
 
 impl<'a> IdentifierType<'a> {
@@ -22,6 +23,7 @@ impl<'a> IdentifierType<'a> {
             IdentifierType::EnumVariant(..) => "",
             IdentifierType::FunctionArg => "a",
             IdentifierType::Enum => "",
+            IdentifierType::Item => "",
         }
     }
 }
@@ -51,6 +53,32 @@ pub enum RenameRule {
 }
 
 impl RenameRule {
+    /// Applies the rename rule to a string of any case, this function tries to guess
+    /// the case the string is using
+    pub fn apply(self, text: &str, context: IdentifierType) -> String {
+        if (&text).find('_').is_none() {
+            // This is either a single word, or a string in PascalCase
+            // For the single word case, we need to check if all characters are lower case
+            if text.find(|ch: char| ch.is_uppercase()).is_some() {
+                self.apply_to_pascal_case(text, context)
+            } else {
+                self.apply_to_snake_case(text, context)
+            }
+        } else {
+            // This could be a PascalCase with some '_', or a snake_case string
+            let upper_case_count: usize = text
+                .chars()
+                .map(|ch| if ch.is_uppercase() { 1 } else { 0 })
+                .sum();
+            if upper_case_count == text.chars().count() || upper_case_count == 0 {
+                // If everything is upper case, assuming SCREAMING_SNAKE_CASE;
+                // if none is upper case, assuming snake_case
+                self.apply_to_snake_case(text, context)
+            } else {
+                self.apply_to_pascal_case(text, context)
+            }
+        }
+    }
     /// Applies the rename rule to a string that is formatted in PascalCase.
     pub fn apply_to_pascal_case(self, text: &str, context: IdentifierType) -> String {
         if text.is_empty() {
